@@ -8,7 +8,7 @@ Sequential knockoff generator for genetic data
 Generate single/multiple knockoffs for genetic variants for customized analysis.
 }
 \usage{
-create.MK(X,pos,M=5,corr_max=0.75)
+create.MK(X,pos,M=5,corr_max=0.75,maxN.neighbor=Inf,maxBP.neighbor=100000)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -23,6 +23,12 @@ Number of knockoffs per variant. The default is 5.
 }
   \item{corr_max}{
 The correlation threshold for hierarchical clustering, such that variants from two different clusters do not have a correlation greater than corr_max. The hierarchical clustering step is a practical strategy to improve the power for tightly linked variants. The default is 0.75.
+}
+  \item{maxN.neighbor}{
+The maximum number of neighoring variables used to generate knockoffs. The default is Inf. Smaller number will inprove the computational efficiency, but the knockoffs will be less accurate.
+}
+  \item{maxBP.neighbor}{
+The size of neighboring region (in base pairs) used to generate knockoffs. The default is 100000.
 }
 }
 %\details{

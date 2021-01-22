@@ -25,7 +25,7 @@ KS.prelim<-function(Y, X=NULL, id=NULL, out_type="C", B=1000){
   return(result.prelim)
 }
 
-KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01,CADD.filename=NULL,GenoNet.filename=NULL,midout.dir=NULL,temp.dir=NULL,jobtitle=NULL,Gsub.id=NULL,impute.method='fixed'){
+KS.VCF.chr<-function(result.prelim,seq.filename,window.bed,M=5,thres.single=0.01,CADD.filename=NULL,GenoNet.filename=NULL,midout.dir=NULL,temp.dir=NULL,jobtitle=NULL,Gsub.id=NULL,impute.method='fixed'){
 
   time.start<-proc.time()[3]
   region.step=0.1*10^6
@@ -50,13 +50,13 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
     #range<-paste0('chr',chr,":",max(start-0.1*10^6,1),"-",end+0.1*10^6)
     if(length(G.after)==0){
       range<-paste0(chr,":",max(start),"-",end)
-      G.now <- t(readVCFToMatrixByRange(vcf.filename, range,annoType='')[[1]])
+      G.now <- t(readVCFToMatrixByRange(seq.filename, range,annoType='')[[1]])
       range<-paste0(chr,":",max(end,1),"-",end+region.step)
-      G.after <- t(readVCFToMatrixByRange(vcf.filename, range,annoType='')[[1]])
+      G.after <- t(readVCFToMatrixByRange(seq.filename, range,annoType='')[[1]])
     }else{
       G.now <- G.after
       range<-paste0(chr,":",max(end,1),"-",end+region.step)
-      G.after <- t(readVCFToMatrixByRange(vcf.filename, range,annoType='')[[1]])
+      G.after <- t(readVCFToMatrixByRange(seq.filename, range,annoType='')[[1]])
     }
     G<-cbind(G.before,G.now,G.after)
     G.before<-G.now
@@ -83,7 +83,7 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
         next
       }}
     # missing genotype imputation
-    G[G==-9 | G==9]<-NA
+    G[G<0 | G==9]<-NA
     N_MISS<-sum(is.na(G))
     MISS.freq<-apply(is.na(G),2,mean)
     if(N_MISS>0){
@@ -96,7 +96,7 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
     MAF<-apply(G,2,mean)/2
     MAC<-apply(G,2,sum)
     s<-apply(G,2,sd)
-    SNP.index<-which(MAF>0 & s!=0 & !is.na(MAF) & MISS.freq<0.1)# & MAC>10
+    SNP.index<-which(MAF>0 & s!=0 & !is.na(MAF) & MISS.freq<0.1)# & MAC>5
 
     pos<-as.numeric(gsub("^.*\\:","",colnames(G)))
     check.index<-which(MAF>0 & s!=0 & !is.na(MAF)  & MISS.freq<0.1 & pos>start & pos<end)
@@ -112,7 +112,8 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
     pos<-as.numeric(gsub("^.*\\:","",colnames(G)))
     #p.single<-Get.p(G,result.prelim)
     #G_k<-create.MK(G,pos,M=M,FA=-log10(p.single))
-    G_k<-create.MK(G,pos,M=M)
+    #G_k<-create.MK(G,pos,M=M)
+    G_k<-create.MK(G,pos,M=M,maxN.neighbor=Inf,maxBP.neighbor=0.1*10^6)
 
     ##single variant test
     single.index<-which(pos>start & pos<end & MAF>thres.single)
@@ -170,8 +171,8 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
     window.summary<-cbind(window.temp[window.index,2],window.temp[window.index,3],t(apply(window.matrix,2,function(x)c(min(pos[which(x==1)]),max(pos[which(x==1)])))))
 
     weight.beta<-dbeta(apply(G.window,2,mean)/2,1,25)
-    weight.matrix<-cbind(MAC<=10,(MAF<0.01&MAC>10)*weight.beta,(MAF>=0.01)*weight.beta)
-    colnames(weight.matrix)<-c('MAC<=10','MAF<0.01&MAC>10&Beta','MAF>=0.01Beta')
+    weight.matrix<-cbind(MAC<=10,(MAF<0.01&MAC>5)*weight.beta,(MAF>=0.01)*weight.beta)
+    colnames(weight.matrix)<-c('MAC<=10','MAF<0.01&MAC>5&Beta','MAF>=0.01Beta')
     #CADD.filename<-'/oak/stanford/groups/zihuai/GeneticsResources/CADD_hg38/whole_genome_SNVs.tsv.gz'
     if(length(CADD.filename)!=0){
       job_id<-paste0(chr,':',pos.min,'-',pos.max)
@@ -183,8 +184,8 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
       index<-rep(match(pos,score[,2])-1,each=3)+1:3
       temp.score<-score[index,]
       CADD<-as.matrix(tapply(temp.score[,6],temp.score[,2],mean))
-      colnames(CADD)<-'MAF<0.01&MAC>10&CADD'
-      weight.matrix<-cbind(weight.matrix,(MAF<0.01&MAC>10)*CADD)
+      colnames(CADD)<-'MAF<0.01&MAC>5&CADD'
+      weight.matrix<-cbind(weight.matrix,(MAF<0.01&MAC>5)*CADD)
       #weight.matrix<-Matrix(cbind(MAC<10,(MAF<0.01)*dbeta(apply(G,2,mean)/2,1,25),dbeta(apply(G,2,mean)/2,1,25),rep(1,length(MAF)),CADD))
       #colnames(weight.matrix)<-c('MAC<10','MAF<0.01&Beta','Beta','Equal','CADD')
     }
@@ -247,8 +248,8 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
                        apply(GenoNet.all[,GI],1,max))
       }
 
-      colnames(GenoNet)<-paste0('MAF<0.01&MAC>10&',c('StemCell','Blood','ConnectiveTissue','Brain','InternalOrgans','FetalBrain','FetalTissue1','Muscle','FetalTissue2','Gastrointestinal'))
-      weight.matrix<-cbind(weight.matrix,(MAF<0.01&MAC>10)*GenoNet)
+      colnames(GenoNet)<-paste0('MAF<0.01&MAC>5&',c('StemCell','Blood','ConnectiveTissue','Brain','InternalOrgans','FetalBrain','FetalTissue1','Muscle','FetalTissue2','Gastrointestinal'))
+      weight.matrix<-cbind(weight.matrix,(MAF<0.01&MAC>5)*GenoNet)
     }
     weight.matrix<-Matrix(weight.matrix)
 
@@ -290,6 +291,8 @@ KS.VCF.chr<-function(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01
 
   return(list(result.window=result.summary,result.single=result.summary.single))
 }
+
+
 
 KS.summary<-function(result.window,result.single,M){
 
@@ -361,7 +364,7 @@ KS.test<-function(G,G_k,result.prelim,window.matrix,weight.matrix){
   if(ncol(window.matrix)==1){p.V1_k<-matrix(p.V1_k,1,dim(G_k)[1]);p.V2_k<-matrix(p.V2_k,1,dim(G_k)[1])}
 
   p.individual<-cbind(p.burden,p.dispersion,p.V1,p.V2);
-  colnames(p.individual)<-c(paste0('burden_',colnames(weight.matrix)),paste0('dispersion_',colnames(weight.matrix)),'singleCauchy_MAF<0.01&MAC>10','singleCauchy_MAF>=0.01')
+  colnames(p.individual)<-c(paste0('burden_',colnames(weight.matrix)),paste0('dispersion_',colnames(weight.matrix)),'singleCauchy_MAF<0.01&MAC>5','singleCauchy_MAF>=0.01')
 
   p.KS<-as.matrix(apply(p.individual,1,Get.cauchy))
   p.KS_k<-matrix(sapply(1:dim(G_k)[1],function(s){apply(cbind(matrix(p.burden_k[s,,],dim(p.burden_k)[2],dim(p.burden_k)[3]),
@@ -459,6 +462,7 @@ Get.p.SKAT<-function(score,re.score,K,window.matrix,weight,result.prelim){
   return(as.matrix(p))
 }
 
+
 #percentage notation
 percent <- function(x, digits = 3, format = "f", ...) {
   paste0(formatC(100 * x, format = format, digits = digits, ...), "%")
@@ -473,11 +477,20 @@ sparse.cor <- function(x){
   list(cov=covmat,cor=cormat)
 }
 
-create.MK <- function(X,pos,M=5,corr_max=0.75) {
+sparse.cov.cross <- function(x,y){
+  n <- nrow(x)
+  cMeans.x <- colMeans(x);cMeans.y <- colMeans(y)
+  covmat <- (as.matrix(crossprod(x,y)) - n*tcrossprod(cMeans.x,cMeans.y))/(n-1)
+  list(cov=covmat)
+}
 
-  FA=NULL
-  X<-as.matrix(X)
-  cor.X<-sparse.cor(Matrix(X))$cor
+
+
+create.MK <- function(X,pos,M=5,corr_max=0.75,maxN.neighbor=Inf,maxBP.neighbor=100000) {
+
+  sparse.fit<-sparse.cor(X)
+  cor.X<-sparse.fit$cor;cov.X<-sparse.fit$cov
+
   Sigma.distance = as.dist(1 - abs(cor.X))
   if(ncol(X)>1){
     fit = hclust(Sigma.distance, method="single")
@@ -485,39 +498,75 @@ create.MK <- function(X,pos,M=5,corr_max=0.75) {
     clusters = cutree(fit, h=1-corr_max)
   }else{clusters<-1}
 
+  #temp.M<-matrix(1,M+1,M+1)
+  #cov.M<-kronecker(temp.M,cov.X)
+
   #X_k<-matrix(0,nrow(X),ncol(X));index.exist<-c()
   X_k<-array(0,dim=c(M,nrow(X),ncol(X)));index.exist<-c()
   for (k in unique(clusters)){
-    if(length(FA)!=0){
-      FA.order<-which(clusters==k)[order(FA[which(clusters==k)],decreasing=T)]
-    }else{FA.order<-which(clusters==k)}
-    for(i in FA.order){
-      index.pos<-which(pos>=max(pos[i]-100000,pos[1]) & pos<=min(pos[i]+100000,pos[length(pos)]))
-      if(length(FA)!=0){
-        temp<-abs(cor.X[i,]);temp[which(clusters==clusters[i] & !((1:ncol(X))%in%index.exist))]<-0;temp[-index.pos]<-0
-      }else{
-        temp<-abs(cor.X[i,]);temp[which(clusters==clusters[i])]<-0;temp[-index.pos]<-0
-      }
-      #temp<-abs(cor.X[i,]);temp[which(clusters==clusters[i])]<-0;temp[-index.pos]<-0
-      index<-order(temp,decreasing=T)
-      index<-setdiff(index[1:min(length(index),sum(temp>0.05),floor((nrow(X))^(1/3)))],i)
+    cluster.fitted<-cluster.residuals<-matrix(NA,nrow(X),sum(clusters==k))
+    for(i in which(clusters==k)){
+      #print(i)
+      index.pos<-which(pos>=max(pos[i]-maxBP.neighbor,pos[1]) & pos<=min(pos[i]+maxBP.neighbor,pos[length(pos)]))
+      temp<-abs(cor.X[i,]);temp[which(clusters==k)]<-0;temp[-index.pos]<-0
 
-      y<-X[,i];x<-X[,index]
-      for(j in 1:M){x<-cbind(x,X_k[j,,intersect(index,index.exist)])}
-      #y<-apply(as.matrix(X[,cor.X[i,]>0.9]),1,mean);x<-cbind(X[,index],X_k[,intersect(index,1:i)])
-      if(length(x)!=0){fit<-lm(y~x)}else{
-        fit<-lm(y~1)
+      index<-order(temp,decreasing=T)
+      index<-setdiff(index[1:min(length(index),sum(temp>0.05),floor((nrow(X))^(1/3)),maxN.neighbor)],i)
+
+      y<-X[,i]
+      if(length(index)==0){fitted.values<-mean(y)}else{
+
+        x<-X[,index,drop=F];temp.xy<-rbind(mean(y),crossprod(x,y)/length(y)-colMeans(x)*mean(y))
+        x.exist<-c()
+        for(j in 1:M){
+          x.exist<-cbind(x.exist,X_k[j,,intersect(index,index.exist)])
+        }
+        temp.xy<-rbind(temp.xy,crossprod(x.exist,y)/length(y)-colMeans(x.exist)*mean(y))
+
+        temp.cov.cross<-sparse.cov.cross(x,x.exist)$cov
+        temp.cov<-sparse.cor(x.exist)$cov
+        temp.xx<-cov.X[index,index]
+        temp.xx<-rbind(cbind(temp.xx,temp.cov.cross),cbind(t(temp.cov.cross),temp.cov))
+
+        temp.xx<-cbind(0,temp.xx)
+        temp.xx<-rbind(c(1,rep(0,ncol(temp.xx)-1)),temp.xx)
+
+        pca.fit<-princomp(covmat=temp.xx)
+        v<-pca.fit$loadings
+        cump<-cumsum(pca.fit$sdev^2)/sum(pca.fit$sdev^2)
+        n.pc<-which(cump>=0.999)[1]#nrow(temp.xx)#nrow(temp.xx)#
+        pca.index<-intersect(1:n.pc,which(pca.fit$sdev!=0))#which(cump<=0.99)
+        #calculate
+        #inverse ZZ matrix
+        temp.inv<-v[,pca.index,drop=F]%*%(pca.fit$sdev[pca.index]^(-2)*t(v[,pca.index,drop=F]))
+        #beta coefficients
+        temp.beta<-temp.inv%*%temp.xy
+
+        temp.j<-1
+        fitted.values<-temp.beta[1]+crossprod(t(x),temp.beta[(temp.j+1):(temp.j+ncol(x)),,drop=F])-sum(colMeans(x)*temp.beta[(temp.j+1):(temp.j+ncol(x)),,drop=F])
+        temp.j<-temp.j+ncol(x)
+        for(j in 1:M){
+          temp.x<-as.matrix(X_k[j,,intersect(index,index.exist)])
+          if(ncol(temp.x)>=1){
+            fitted.values<-fitted.values+crossprod(t(temp.x),temp.beta[(temp.j+1):(temp.j+ncol(temp.x)),,drop=F])-sum(colMeans(temp.x)*temp.beta[(temp.j+1):(temp.j+ncol(temp.x)),,drop=F])
+          }
+          temp.j<-temp.j+ncol(temp.x)
+        }
       }
-      #print(summary(fit)$r.squared)
-      fitted.values<-fit$fitted.values
       residuals<-y-fitted.values
-      X_k[,,i]<-t(as.vector(fitted.values)+sapply(1:M,function(x)sample(residuals)))#fitted.values+sample(residuals)
+      cluster.fitted[,match(i,which(clusters==k))]<-as.vector(fitted.values)
+      cluster.residuals[,match(i,which(clusters==k))]<-as.vector(residuals)
+
       index.exist<-c(index.exist,i)
+    }
+    #sample mutiple knockoffs
+    cluster.sample.index<-sapply(1:M,function(x)sample(1:nrow(X)))
+    for(j in 1:M){
+      X_k[j,,which(clusters==k)]<-cluster.fitted+cluster.residuals[cluster.sample.index[,j],,drop=F]
     }
   }
   return(X_k)
 }
-
 
 max.nth<-function(x,n){return(sort(x,partial=length(x)-(n-1))[length(x)-(n-1)])}
 
@@ -554,8 +603,7 @@ MK.statistic<-function (T_0,T_k,method='median'){
     Get.OtherMedian<-function(x){median(x[-which.max(x)])}
     tau<-apply(T.temp,1,max)-apply(T.temp,1,Get.OtherMedian)
   }
-  KS.stat<-cbind(kappa,tau)
-  return(KS.stat)
+  return(cbind(kappa,tau))
 }
 
 MK.threshold.byStat<-function (kappa,tau,M,fdr = 0.1,Rej.Bound=10000){

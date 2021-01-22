@@ -8,7 +8,7 @@ Scan a VCF file to identify the putative causal loci in whole-genome sequencing 
 Once the preliminary work is done by "KS.prelim()", this function scan a chromosome given a set of pre-defined windows. It also evalautes invidual variants within those windows.
 }
 \usage{
-KS.VCF.chr(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01,
+KS.VCF.chr(result.prelim,seq.filename,window.bed,M=5,thres.single=0.01,
 CADD.filename=NULL,GenoNet.filename=NULL,midout.dir=NULL,temp.dir=NULL,
 jobtitle=NULL,Gsub.id=NULL,impute.method='fixed')
 }
@@ -17,7 +17,7 @@ jobtitle=NULL,Gsub.id=NULL,impute.method='fixed')
   \item{result.prelim}{
 The output of function "KS.prelim()"
 }
-  \item{vcf.filename}{
+  \item{seq.filename}{
 A character specifying the directory (including the file name) of the vcf file.
 }
   \item{window.bed}{
