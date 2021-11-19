@@ -8,7 +8,7 @@ Preliminary data management for KnockoffScreen
 This function does the preliminary data management and fit the model under null hypothesis. The output will be passed to the other functions.
 }
 \usage{
-KS.prelim(Y, X=NULL, id=NULL, out_type="C", B=1000)
+KS.prelim(Y, X=NULL, id=NULL, out_type="C")
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -24,16 +24,13 @@ The subject id. This is used to match phenotype with genotype. The default is NU
   \item{out_type}{
 Type of outcome variable. Can be either "C" for continuous or "D" for dichotomous. The default is "C".
 }
-  \item{B}{
-Number of resampling replicates. The default is 1000. A larger value leads to more accurate and stable p-value calculation, but requires more computing time.
-}
 
 }
 %\details{
 %%  ~~ If necessary, more details than the description above ~~
 %}
 \value{
-  It returns a list that will be passed to function KS.VCF.chr().
+  It returns a list that will be passed to function KS.chr().
 %%  ~Describe the value returned
 %%  If it is a LIST, use
 %%  \item{comp1 }{Description of 'comp1'}
@@ -71,7 +68,7 @@ X<-as.matrix(rnorm(nrow(example.G),0,1))
 id<-rownames(example.G)
 
 # fit null model
-result.prelim<-KS.prelim(Y,X=X,id=id,out_type="C",B=1000)
+result.prelim<-KS.prelim(Y,X=X,id=id,out_type="C")
 
 }
 

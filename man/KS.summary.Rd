@@ -67,12 +67,12 @@ X<-as.matrix(rnorm(nrow(example.G),0,1))
 id<-rownames(example.G)
 
 # fit null model
-result.prelim<-KS.prelim(Y,X=X,id=id,out_type="C",B=1000)
+result.prelim<-KS.prelim(Y,X=X,id=id,out_type="C")
 
 # Define the window.bed file
 chr<-1
 pos.min<-196621007;pos.max<-196716634
-window.size=c(1000,5000,10000)
+window.size=c(2000)
 
 window.bed<-c();
 for(size in window.size){
@@ -86,7 +86,9 @@ midout.dir<-NULL # or '/YourProjectDir/MidResults/'
 temp.dir<-NULL # or '/YourProjectDir/Temp_out/' #this is a folder to save temporary results
 jobtitle<-'YourProjectTitle'
 
-fit <- KS.VCF.chr(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.01,
+# we set thres.single=0.1,thres.ultrarare=0 for a proof of concept.
+# note that the default for real data analysis is thres.single=0.01, thres.ultrarare=25
+fit <- KS.chr(result.prelim,vcf.filename,window.bed,M=5,thres.single=0.1,thres.ultrarare=0,
 midout.dir=midout.dir,temp.dir=temp.dir,jobtitle=jobtitle)
 
 # summarize the results

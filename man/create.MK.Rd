@@ -8,7 +8,9 @@ Sequential knockoff generator for genetic data
 Generate single/multiple knockoffs for genetic variants for customized analysis.
 }
 \usage{
-create.MK(X,pos,M=5,corr_max=0.75,maxN.neighbor=Inf,maxBP.neighbor=100000)
+create.MK(X,pos,M=5,corr_max=0.75,maxN.neighbor=Inf,maxBP.neighbor=100000,
+n.AL=floor(10*nrow(X)^(1/3)*log(nrow(X))),thres.ultrarare=25,
+R2.thres=1,method='shrinkage',bigmemory=T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -30,13 +32,28 @@ The maximum number of neighoring variables used to generate knockoffs. The defau
   \item{maxBP.neighbor}{
 The size of neighboring region (in base pairs) used to generate knockoffs. The default is 100000.
 }
+  \item{n.AL}{
+The sample size for the algorithmic leveraging. The default is 10*n^(1/3)*log(n)).
+}
+  \item{thres.ultrarare}{
+The minor allele count threshold that defines ultrarare variants. The knockoff generation for variants with minor allele counts below the threshold will be based on permutaton. The default is 25.
+}
+  \item{R2.thres}{
+The maximum R2 allowed in the auto-regressive model. More liberal values (<1) lead to higher power for tightly linked variants, but the knockoffs will be less accurate.  The default is 1.
+}
+  \item{method}{
+The method for subsampling. The default is "shrinkage", corresponding to "shrinkage algorithmic leveraging".
+}
+  \item{bigmemory}{
+Whether "bigmemory" operation is applied. Default is TRUE.
+}
 }
 %\details{
 %%  ~~ If necessary, more details than the description above ~~
 %}
 \value{
   \item{X_k}{
-An M*n*p array for the M knockoffs.
+An M dimentions list, where each dimention is an n*p matrix as a knockoff copy of original data.
 }
 }
 %%  ~Describe the value returned
